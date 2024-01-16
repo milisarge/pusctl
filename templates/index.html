@@ -29,7 +29,9 @@
   <div id="hbt-area"></div>
   <hr>
   <button id="crash" class="btn btn-primary" type="button" style="width:100px"> Crash</button>
-  <input id="crash-ip" style="width:200px"></input>
+  <input id="node-ip" style="width:200px"></input><br><p>
+  <button id="migrate" class="btn btn-primary" type="button" style="width:100px">Migrate</button>
+  
 </div>
 
 <script>
@@ -60,16 +62,28 @@ $(document).ready(function(){
 <script>
 $(function() {	
 	$("button[id*='crash']").click(function() {
-    console.log('Toggle: '+$("#crash-ip").prop("id") + " basıldı");
-    var ip = $("#crash-ip").val();
-    $.post({
-      url: "api/pus/crash/"+ ip,
-      contentType: "application/json; charset=utf-8"
-    })
-    .done(function (response) {
-      console.log(response);
-    }); //done bitiş
-  }); //btn bitiş
+		console.log('Toggle: '+$("#node-ip").prop("id") + " basıldı");
+		var ip = $("#node-ip").val();
+		$.post({
+		  url: "api/pus/crash/"+ ip,
+		  contentType: "application/json; charset=utf-8"
+		})
+		.done(function (response) {
+		  console.log(response);
+		}); //done bitiş
+	}); //btn bitiş
+	
+	$("button[id*='migrate']").click(function() {
+		console.log('Toggle: '+$("#node-ip").prop("id") + " basıldı");
+		var ip = $("#node-ip").val();
+		$.post({
+		  url: "api/pus/migrate/"+ ip,
+		  contentType: "application/json; charset=utf-8"
+		})
+		.done(function (response) {
+		  console.log(response);
+		}); //done bitiş
+	}); //btn bitiş
 });
 </script>
 
