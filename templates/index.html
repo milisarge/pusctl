@@ -23,7 +23,6 @@
 </style>
 
 <div style="padding-left:16px;padding-right:16px">
-
   <h2>Pus Nodes</h2>
   <pre id="wrapper"></pre>
   <div id="hbt-area"></div>
@@ -31,21 +30,25 @@
   <button id="crash" class="btn btn-primary" type="button" style="width:100px"> Crash</button>
   <input id="node-ip" style="width:200px"></input><br><p>
   <button id="migrate" class="btn btn-primary" type="button" style="width:100px">Migrate</button>
-  
 </div>
 
 <script>
 function fetchdata(){  
   var wrapper = document.getElementById("wrapper");
-  $.get( "api/pus/hb", function( resp ) {
-    //console.log(resp.nodes)
+  $.get( "api/pus/machines", function( resp ) {
+    //console.log(resp.machines)
     var t_str = "<table border=1>";
-    t_str += "<thead><th>IP</th><th>Last Check</th></thead>"
-     $.each(resp.nodes, function (ip,hbt) {
-       t_str += "<tr><td>"+ip+"</td><td>"+hbt.split('.')[0]+"</td>"
-       // crash
-       t_str += "</tr>"
-       
+    t_str += "<thead><th>ID</th><th>Local IP</th><th>Port</th><th>Host IP</th><th>Heartbeat</th><th>Machine Status</th></thead>"
+    $.each(resp.machines, function(index, m) {
+       console.log("--",index,m)
+       t_str += "<tr>"
+       t_str += "<td>"+index+"</td>"
+       t_str += "<td>"+m.ip+"</td>"
+       t_str += "<td>"+m.port+"</td>"
+       t_str += "<td>"+m.host_ip+"</td>"
+       t_str += "<td>"+m.status.replace("T", " ").split(".")[0]+"</td>"
+       t_str += "<td>"+m.m_status+"</td>"
+       t_str += "</tr>"  
     });
 	t_str += "</table>";
 	$("#hbt-area").html(t_str);

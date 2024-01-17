@@ -9,7 +9,7 @@ import (
 	"strings"
 	"net"
 	"github.com/digitalocean/go-qemu/qmp"
-	//"strconv"
+	"strconv"
 	"context"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -19,6 +19,18 @@ import (
     "bufio"
     "sync"
 )
+
+const host_ip = "192.168.122.1"
+var latest = 1
+
+type Machine struct {
+  IP      string `json:"ip"`	
+  HostIP  string `json:"host_ip"`	
+  Port    string `json:"port"`
+  TPort   string `json:"target_port"`
+  Status  time.Time `json:"status"`	
+  MStatus string `json:"m_status"`	
+}
 
 type Template struct {
     templates *template.Template
@@ -41,7 +53,21 @@ func format_time(a time.Time) string {
 	return a.Format("2006-01-02 15:04:05")
 }
 
-var qemu_ports map[string]string
+func deleteElement(slice []Machine, index int) []Machine {
+   return append(slice[:index], slice[index+1:]...)
+}
+
+//var qemu_ports map[string]string
+var qemu_ports = struct{
+    sync.RWMutex
+    m map[string]string
+}{m: make(map[string]string)}
+
+// concurency safe
+var machines = struct{
+    sync.RWMutex
+    m map[string]Machine
+}{m: make(map[string]Machine)} 
 //var hbs map[string]time.Time
 
 // concurency safe
@@ -57,6 +83,45 @@ type StatusResult struct {
 		Singlestep bool   `json:"singlestep"`
 		Status     string `json:"status"`
 	} `json:"return"`
+}
+
+func define_machines() {
+  for i, machine := range []Machine{
+    Machine { IP: "192.168.122.189", HostIP: host_ip, Port: "4401", TPort: "4501", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.190", HostIP: host_ip, Port: "4402", TPort: "4502", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.191", HostIP: host_ip, Port: "4403", TPort: "4503", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.192", HostIP: host_ip, Port: "4404", TPort: "4504", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.193", HostIP: host_ip, Port: "4405", TPort: "4505", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.194", HostIP: host_ip, Port: "4406", TPort: "4506", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.195", HostIP: host_ip, Port: "4407", TPort: "4507", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.196", HostIP: host_ip, Port: "4408", TPort: "4508", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.197", HostIP: host_ip, Port: "4409", TPort: "4509", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.204", HostIP: host_ip, Port: "4410", TPort: "4510", Status: time.Time{}, MStatus: "-" }, 
+    /*Machine { IP: "192.168.122.205", HostIP: host_ip, Port: "4411", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.206", HostIP: host_ip, Port: "4412", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.207", HostIP: host_ip, Port: "4413", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.208", HostIP: host_ip, Port: "4414", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.209", HostIP: host_ip, Port: "4415", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.210", HostIP: host_ip, Port: "4416", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.211", HostIP: host_ip, Port: "4417", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.212", HostIP: host_ip, Port: "4418", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.213", HostIP: host_ip, Port: "4419", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.220", HostIP: host_ip, Port: "4420", Status: time.Time{}, MStatus: "-" },*/
+    Machine { IP: "192.168.122.239", HostIP: host_ip, Port: "4444", TPort: "4544", Status: time.Time{}, MStatus: "-" }, 
+  } {
+    machines.m[strconv.Itoa(i+1)] = machine
+    latest = i+2
+  }
+}
+
+// get ip related qemu comm port
+func get_machine_by_ip(ip string) (string, Machine) {
+  for k, m := range machines.m {
+    if ip == m.IP {
+	  return k,m
+	}
+  }
+  return "0", Machine{}
 }
 
 func get_status(ip string ,port string) string {
@@ -132,6 +197,7 @@ func migrate_node(ip string ,port string, t_ip string, t_port string) {
 	  q_cmd := []byte(komut)
 	  raw, _ := monitor.Run(q_cmd)
 	  fmt.Println("migrate:",string(raw))
+	  //fmt.Println("*************************")
     }
 }
 
@@ -165,7 +231,7 @@ func response(udpServer net.PacketConn, addr net.Addr, buf []byte) {
 	msg := ""
 	// job id
 	//num := 1
-	for i,bi := range buf{
+	for i,bi := range buf {
 		//fmt.Printf("%v:%x ",i,bi)
 		if fmt.Sprintf("%x",bi) == "a" {
 		  idb := make([]byte, buf[i+1])
@@ -181,41 +247,26 @@ func response(udpServer net.PacketConn, addr net.Addr, buf []byte) {
 		} 
 	}
 	ip := strings.Split(addr.String(),":")[0]
-	portq := ""
-	mach_st := "?"
-	pint := time.Now()
-	if qemu_ports[ip] != "" {
-	  portq = qemu_ports[ip]
-	  if msg == "heartbeat" {
-		mach_st = get_status("192.168.122.1",portq)
-		go save_snapshot("192.168.122.1",portq, byte(5))
-	  }
-	  if msg == "savevm" {
-		if time.Now().Sub(pint) < (2*time.Second) {
-		go save_snapshot("192.168.122.1", portq, buf[7])
-		mach_st="saving"
-		} else {mach_st="not saving"}
-		
-	  }
-	}
-	hbs.RLock()
-	if hbs.m[ip] != time.Now() {
-	  pint = hbs.m[ip]
-	}
-	hbs.RUnlock()
-	//fmt.Printf(string(buf))
-	//fmt.Println("--")
-	time_val := time.Now()
-	//fmt.Println(time_val)
-	hbs.RLock()
-	hbs.m[ip] = time_val
-	hbs.RUnlock()
-	fmt.Printf("addr:%s mid:%s msg:%s int:%s machine:%s \n",addr, mid, msg, time_val.Sub(pint), mach_st)
-	/*
-	responseStr := fmt.Sprintf("time received: %v. Your message: %v!", time, string(buf))
+	machine_id, machine := get_machine_by_ip(ip)
+	oper := "?"
+	nowt := time.Now()
 
-	udpServer.WriteTo([]byte(responseStr), addr)
-	*/
+	if msg == "heartbeat" {
+	  oper = get_status(machine.HostIP, machine.Port)
+	  go save_snapshot(machine.HostIP, machine.Port, byte(5))
+	}
+	if msg == "savevm" {
+	  // 2sn den küçükse hb e göre save snapshot alınacak	
+	  if time.Now().Sub(nowt) < (2*time.Second) {
+	    go save_snapshot(machine.HostIP, machine.Port, buf[7])
+		oper="saving"
+	  } else {oper="not saving"}
+	}
+	prev_time := machine.Status
+	machine.Status = nowt
+	machine.MStatus = get_status(machine.HostIP, machine.Port)
+	machines.m[machine_id] = machine
+	fmt.Printf("addr:%s mid:%s msg:%s int:%s machine:%s \n",addr, mid, msg, machine.Status.Sub(prev_time), oper)
 }
 
 func hearbeat_server() {
@@ -264,19 +315,14 @@ func web_server() {
 	// routes
 	e.GET("/", HomePage)
 	e.GET("/api/ping", PingWeb)
-	e.GET("/api/pus/hb", HbStatus)
 	
 	e.POST("/api/pus/crash/:node", SendCrash)
 	e.POST("/api/pus/migrate/:node", MigrateNode)
 	
+	e.POST("/api/pus/machines/:ip/:port/:tport", RegisterMachine)
+	e.GET("/api/pus/machines", GetMachines)
+	
 	e.Logger.Fatal(e.Start(":8810"))
-}
-
-func HbStatus(c echo.Context) error {
-  
-  return c.JSON(http.StatusOK, map[string]interface{}{
-  	"nodes": hbs.m,
-  })
 }
 
 func SendCrash(c echo.Context) error {
@@ -289,14 +335,53 @@ func SendCrash(c echo.Context) error {
 
 func MigrateNode(c echo.Context) error {
   node := c.Param("node")
-  port := qemu_ports[node]
+  _, machine := get_machine_by_ip(node)
   // discovery yapılıp alınacak
   // geçici qemu_target alındı
-  t_ip   := "192.168.122.1" 
-  t_port := "4510" 
-  migrate_node("192.168.122.1", port ,t_ip, t_port)
+  id := ""
+  var target Machine
+  for i, m := range machines.m {
+    if m.MStatus == "inmigrate" {
+	  target = m
+	  id = i
+	  break
+	}
+  }
+  target.IP = machine.IP
+  machines.m[id] = target
+  // target ip bulamazsa migrate yapılamaz
+  if id == "" {
+    return c.JSON(http.StatusOK, map[string]interface{}{
+  	  "error": "migratable node not found",
+    })
+  }
+  migrate_node(machine.HostIP, machine.Port ,target.HostIP, target.TPort)
   return c.JSON(http.StatusOK, map[string]interface{}{
-  	"op": "ok",
+  	"found": "ok",
+  	"machine" : id,
+  })
+}
+
+func RegisterMachine(c echo.Context) error {
+  ip := c.Param("ip")
+  port := c.Param("port")
+  tport := c.Param("tport")
+  var m Machine
+  m.HostIP = ip
+  m.Port = port
+  m.TPort = tport
+  m.MStatus = "Reserved" //get_status(m.IP, m.Port)
+  machines.m[strconv.Itoa(latest)] = m
+  latest += 1
+  return c.JSON(http.StatusOK, map[string]interface{}{
+  	"result": "ok",
+	"machine" : m,
+  })
+}
+
+func GetMachines(c echo.Context) error {
+  return c.JSON(http.StatusOK, map[string]interface{}{
+  	"machines": machines.m,
   })
 }
 
@@ -305,21 +390,22 @@ func checkHb(ticker* time.Ticker) {
 	  select {
 		case t := <-ticker.C:
 		  fmt.Println("Tick at", t)
-		  for node := range hbs.m {
-			hbs.RLock()
-			df := t.Sub(hbs.m[node])
-			hbs.RUnlock()
+		  for id, machine := range machines.m {
+			df := t.Sub(machine.Status)			  
 			if df > (60 * time.Second) {
-			  fmt.Println("hb_checker", node, "rebooting", df)
-			  go reboot_machine("192.168.122.1",qemu_ports[node])
+			  fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "rebooting", df)  
+			  go reboot_machine(machine.HostIP,machine.Port)
 			} else if df > (4 * time.Second) {
-			  fmt.Println("hb_checker", node, "crash", df)
-			  go load_snapshot("192.168.122.1",qemu_ports[node])
+			  fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "crash", df)
+			  go load_snapshot(machine.HostIP,machine.Port)
 			} else {
-			  fmt.Println("hb_checker", node, "healthy", df)
-			  //go save_snapshot("192.168.122.1",qemu_ports[node], byte(t.Second()))
+			  fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "healthy", df)
+			  //go save_snapshot(local_ip,qemu_ports[node], byte(t.Second()))
 			}
-		  } 
+			//update machine status
+			machine.MStatus = get_status(machine.HostIP, machine.Port)
+			machines.m[id] = machine
+		  }
 	  }
 	}
 }
@@ -352,30 +438,7 @@ func send_cmd(ip string, port string) {
 
 func main(){
 	
-	qemu_ports = map[string]string {
-	    "192.168.122.189":"4401",
-		"192.168.122.190":"4402",
-		"192.168.122.191":"4403",
-		"192.168.122.192":"4404",
-		"192.168.122.193":"4405",
-		"192.168.122.194":"4406",
-		"192.168.122.195":"4407",
-		"192.168.122.196":"4408",
-		"192.168.122.197":"4409",
-		"192.168.122.204":"4410",
-		"192.168.122.205":"4411",
-		"192.168.122.206":"4412",
-		"192.168.122.207":"4413",
-		"192.168.122.208":"4414",
-		"192.168.122.209":"4415",
-		"192.168.122.210":"4416",
-		"192.168.122.211":"4417",
-		"192.168.122.212":"4418",
-		"192.168.122.213":"4419",
-		"192.168.122.220":"4420",
-		"192.168.122.239":"4444",
-	}
-	hbs.m = make(map[string]time.Time, 10)
+	define_machines()
 	
 	ticker := time.NewTicker(time.Second * 10)
     go checkHb(ticker)
