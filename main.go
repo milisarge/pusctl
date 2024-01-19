@@ -217,6 +217,24 @@ func reboot_machine(ip string ,port string) {
     }
 }
 
+func shutdown_machine(ip string ,port string) {
+	monitor, err := qmp.NewSocketMonitor("tcp", fmt.Sprintf("%s:%s",ip,port), 1*time.Second)
+	if err != nil {
+	  log.Println(err)
+    } else {
+      monitor.Connect()
+	  defer monitor.Disconnect()
+	  //komut := `{"execute": "snapshot-load","arguments": {"job-id": "load0","tag": "state102","vmstate": "blk","devices": ["blk"]}}`
+	  komut := fmt.Sprintf(`{"execute": "quit"}`)
+	  fmt.Println(komut, port)
+	  q_cmd := []byte(komut)
+	  raw, _ := monitor.Run(q_cmd)
+	  fmt.Println("*************************")
+	  fmt.Println("shutdown:",string(raw))
+	  fmt.Println("*************************")
+    }
+}
+
 func get_events(monitor *qmp.SocketMonitor) {
 	stream, _ := monitor.Events(context.Background())
 	fmt.Println("--")
@@ -335,7 +353,7 @@ func SendCrash(c echo.Context) error {
 
 func MigrateNode(c echo.Context) error {
   node := c.Param("node")
-  _, machine := get_machine_by_ip(node)
+  src_id, machine := get_machine_by_ip(node)
   // discovery yapılıp alınacak
   // geçici qemu_target alındı
   id := ""
@@ -349,6 +367,9 @@ func MigrateNode(c echo.Context) error {
   }
   target.IP = machine.IP
   machines.m[id] = target
+  // del source machine ip
+  machine.IP = ""
+  machines.m[src_id] = machine
   // target ip bulamazsa migrate yapılamaz
   if id == "" {
     return c.JSON(http.StatusOK, map[string]interface{}{
@@ -391,16 +412,26 @@ func checkHb(ticker* time.Ticker) {
 		case t := <-ticker.C:
 		  fmt.Println("Tick at", t)
 		  for id, machine := range machines.m {
-			df := t.Sub(machine.Status)			  
-			if df > (60 * time.Second) {
-			  fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "rebooting", df)  
-			  go reboot_machine(machine.HostIP,machine.Port)
-			} else if df > (4 * time.Second) {
-			  fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "crash", df)
-			  go load_snapshot(machine.HostIP,machine.Port)
-			} else {
-			  fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "healthy", df)
-			  //go save_snapshot(local_ip,qemu_ports[node], byte(t.Second()))
+			df := t.Sub(machine.Status)
+			fmt.Println(id, "mstatus:", machine.MStatus)
+			// sadece çalışan makinelerin hb durumunu kontrol et
+			if machine.MStatus == "running" {
+				if df > (60 * time.Second) {
+				  fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "rebooting", df)  
+				  go reboot_machine(machine.HostIP,machine.Port)
+				} else if df > (4 * time.Second) {
+				  fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "crash", df)
+				  go load_snapshot(machine.HostIP,machine.Port)
+				} else {
+				  fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "healthy", df)
+				  //go save_snapshot(local_ip,qemu_ports[node], byte(t.Second()))
+				}
+			}
+			//göçü tamamlamış makineyi sonlandır
+			if machine.MStatus == "postmigrate" {
+				fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "power_down", df)  
+				go shutdown_machine(machine.HostIP,machine.Port)
+				// todo: makineyi inmigrate modu ile tekrar başlat
 			}
 			//update machine status
 			machine.MStatus = get_status(machine.HostIP, machine.Port)
