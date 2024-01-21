@@ -92,11 +92,13 @@ func define_machines() {
     Machine { IP: "192.168.122.191", HostIP: host_ip, Port: "4403", TPort: "4503", Status: time.Time{}, MStatus: "-" }, 
     Machine { IP: "192.168.122.192", HostIP: host_ip, Port: "4404", TPort: "4504", Status: time.Time{}, MStatus: "-" }, 
     Machine { IP: "192.168.122.193", HostIP: host_ip, Port: "4405", TPort: "4505", Status: time.Time{}, MStatus: "-" }, 
+    /*
     Machine { IP: "192.168.122.194", HostIP: host_ip, Port: "4406", TPort: "4506", Status: time.Time{}, MStatus: "-" }, 
     Machine { IP: "192.168.122.195", HostIP: host_ip, Port: "4407", TPort: "4507", Status: time.Time{}, MStatus: "-" }, 
     Machine { IP: "192.168.122.196", HostIP: host_ip, Port: "4408", TPort: "4508", Status: time.Time{}, MStatus: "-" }, 
     Machine { IP: "192.168.122.197", HostIP: host_ip, Port: "4409", TPort: "4509", Status: time.Time{}, MStatus: "-" }, 
-    Machine { IP: "192.168.122.204", HostIP: host_ip, Port: "4410", TPort: "4510", Status: time.Time{}, MStatus: "-" }, 
+    */
+    //Machine { IP: "192.168.122.204", HostIP: host_ip, Port: "4410", TPort: "4510", Status: time.Time{}, MStatus: "-" }, 
     /*Machine { IP: "192.168.122.205", HostIP: host_ip, Port: "4411", Status: time.Time{}, MStatus: "-" }, 
     Machine { IP: "192.168.122.206", HostIP: host_ip, Port: "4412", Status: time.Time{}, MStatus: "-" }, 
     Machine { IP: "192.168.122.207", HostIP: host_ip, Port: "4413", Status: time.Time{}, MStatus: "-" }, 
@@ -107,7 +109,7 @@ func define_machines() {
     Machine { IP: "192.168.122.212", HostIP: host_ip, Port: "4418", Status: time.Time{}, MStatus: "-" }, 
     Machine { IP: "192.168.122.213", HostIP: host_ip, Port: "4419", Status: time.Time{}, MStatus: "-" }, 
     Machine { IP: "192.168.122.220", HostIP: host_ip, Port: "4420", Status: time.Time{}, MStatus: "-" },*/
-    Machine { IP: "192.168.122.239", HostIP: host_ip, Port: "4444", TPort: "4544", Status: time.Time{}, MStatus: "-" }, 
+    //Machine { IP: "192.168.122.239", HostIP: host_ip, Port: "4444", TPort: "4544", Status: time.Time{}, MStatus: "-" }, 
   } {
     machines.m[strconv.Itoa(i+1)] = machine
     latest = i+2
@@ -233,6 +235,16 @@ func shutdown_machine(ip string ,port string) {
 	  fmt.Println("shutdown:",string(raw))
 	  fmt.Println("*************************")
     }
+}
+
+func tmux_start_machine(id string) {
+	//tmux new-session -d -s "pus${n}" "scripts/start_pus.sh $n"
+	time.Sleep(3 * time.Second)
+	fmt.Println("tmux start: ................................", id)
+	cmd := "tmux new-session -d -s pus%s /opt/work/kernel/pusos/scripts/start_pus.sh %s -i"
+    out, err := exec.Command("sh", "-c",fmt.Sprintf(cmd,id,id)).Output()
+    fmt.Println("tmux out:",string(out))
+    fmt.Println("tmux err:", err)
 }
 
 func get_events(monitor *qmp.SocketMonitor) {
@@ -432,6 +444,8 @@ func checkHb(ticker* time.Ticker) {
 				fmt.Println("hb_checker",id, machine.HostIP,  machine.IP, "power_down", df)  
 				go shutdown_machine(machine.HostIP,machine.Port)
 				// todo: makineyi inmigrate modu ile tekrar başlat
+				fmt.Println("starting......................................", id)
+				go tmux_start_machine(id)
 			}
 			//update machine status
 			machine.MStatus = get_status(machine.HostIP, machine.Port)
