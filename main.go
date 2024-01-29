@@ -32,6 +32,18 @@ type Machine struct {
   MStatus string `json:"m_status"`	
 }
 
+var machines_db = []Machine{
+    Machine { IP: "192.168.122.189", HostIP: host_ip, Port: "4401", TPort: "4501", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.190", HostIP: host_ip, Port: "4402", TPort: "4502", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.191", HostIP: host_ip, Port: "4403", TPort: "4503", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.192", HostIP: host_ip, Port: "4404", TPort: "4504", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.193", HostIP: host_ip, Port: "4405", TPort: "4505", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.194", HostIP: host_ip, Port: "4406", TPort: "4506", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.195", HostIP: host_ip, Port: "4407", TPort: "4507", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.196", HostIP: host_ip, Port: "4408", TPort: "4508", Status: time.Time{}, MStatus: "-" }, 
+    Machine { IP: "192.168.122.197", HostIP: host_ip, Port: "4409", TPort: "4509", Status: time.Time{}, MStatus: "-" }, 
+}
+
 type Template struct {
     templates *template.Template
 }
@@ -123,7 +135,7 @@ func get_machine_by_ip(ip string) (string, Machine) {
 	  return k,m
 	}
   }
-  return "0", Machine{}
+  return strconv.Itoa(latest), Machine{}
 }
 
 func get_status(ip string ,port string) string {
@@ -241,7 +253,7 @@ func tmux_start_machine(id string) {
 	//tmux new-session -d -s "pus${n}" "scripts/start_pus.sh $n"
 	time.Sleep(3 * time.Second)
 	fmt.Println("tmux start: ................................", id)
-	cmd := "tmux new-session -d -s pus%s /opt/work/kernel/pusos/scripts/start_pus.sh %s -i"
+	cmd := "tmux new-session -d -s pus%s /opt/work/OS/pusos/scripts/start_pus.sh %s -i"
     out, err := exec.Command("sh", "-c",fmt.Sprintf(cmd,id,id)).Output()
     fmt.Println("tmux out:",string(out))
     fmt.Println("tmux err:", err)
@@ -278,6 +290,19 @@ func response(udpServer net.PacketConn, addr net.Addr, buf []byte) {
 	}
 	ip := strings.Split(addr.String(),":")[0]
 	machine_id, machine := get_machine_by_ip(ip)
+	// provision da olmayan birmkina ise
+	if machine.IP == "" {
+	  machine.IP = ip
+	  // search db if it exists
+	  for _,m := range machines_db {
+	    if m.IP == ip {
+		  machine.HostIP = m.HostIP
+		  machine.Port = m.Port
+		  machine.TPort = m.TPort
+		  break
+		}
+	  }
+	}
 	oper := "?"
 	nowt := time.Now()
 

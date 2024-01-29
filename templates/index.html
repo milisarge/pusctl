@@ -20,6 +20,26 @@
   #wrapper li {
     list-style:none;
   }
+  
+  .dropdown {
+  position: relative;
+  width: 200px;
+}
+
+.dropdown select {
+  width: 100%;
+}
+
+.dropdown > * {
+  box-sizing: border-box;
+  height: 1.5em;
+}
+
+.dropdown input {
+  position: absolute;
+  width: calc(100% - 20px);
+}
+
 </style>
 
 <div style="padding-left:16px;padding-right:16px">
@@ -27,9 +47,41 @@
   <pre id="wrapper"></pre>
   <div id="hbt-area"></div>
   <hr>
+ 
+  <!-- <input id="node-ip" style="width:200px"></input><br><p> -->
+  <p><span>IP List: </span>
+  <div class="dropdown">
+    <input id="node-ip" type="text" />
+    <select  onchange="this.previousElementSibling.value=this.value; this.previousElementSibling.focus()">
+      <option value="192.168.122.1">192.168.122.1</option>
+	  <option value="192.168.122.189">192.168.122.189</option>
+	  <option value="192.168.122.190">192.168.122.190</option>
+	  <option value="192.168.122.191">192.168.122.191</option>
+	  <option value="192.168.122.192">192.168.122.192</option>
+	  <option value="192.168.122.193">192.168.122.193</option>
+	  <option value="192.168.122.194">192.168.122.194</option>
+	  <option value="192.168.122.195">192.168.122.195</option>
+	  <option value="192.168.122.196">192.168.122.196</option>
+	  <option value="192.168.122.197">192.168.122.197</option>
+	  <option value="192.168.122.204">192.168.122.204</option>
+	  <option value="192.168.122.205">192.168.122.205</option>
+	  <option value="192.168.122.206">192.168.122.206</option>
+	  <option value="192.168.122.207">192.168.122.207</option>
+	  <option value="192.168.122.208">192.168.122.208</option>
+	  <option value="192.168.122.209">192.168.122.209</option>
+	  <option value="192.168.122.210">192.168.122.210</option>
+	  <option value="192.168.122.211">192.168.122.211</option>
+	  <option value="192.168.122.212">192.168.122.212</option>
+	  <option value="192.168.122.213">192.168.122.213</option>
+	  <option value="192.168.122.220">192.168.122.220</option>
+	  <option value="192.168.122.239">192.168.122.239</option>
+    </select>
+  </div>
+  <p>
   <button id="crash" class="btn btn-primary" type="button" style="width:100px"> Crash</button>
-  <input id="node-ip" style="width:200px"></input><br><p>
+   <p>
   <button id="migrate" class="btn btn-primary" type="button" style="width:100px">Migrate</button>
+  
 </div>
 
 <script>
@@ -67,6 +119,7 @@ $(function() {
 	$("button[id*='crash']").click(function() {
 		console.log('Toggle: '+$("#node-ip").prop("id") + " basıldı");
 		var ip = $("#node-ip").val();
+		console.log("ip:",ip)
 		$.post({
 		  url: "api/pus/crash/"+ ip,
 		  contentType: "application/json; charset=utf-8"
