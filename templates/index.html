@@ -155,6 +155,18 @@ $(function() {
 		  console.log(response);
 		}); //done bitiş
 	}); //btn bitiş
+	
+	$("button[id*='new']").click(function() {
+		console.log('Toggle: '+$("#node-ip").prop("id") + " basıldı");
+		var ip = $("#node-ip").val();
+		$.post({
+		  url: "api/pus/new,
+		  contentType: "application/json; charset=utf-8"
+		})
+		.done(function (response) {
+		  console.log(response);
+		}); //done bitiş
+	}); //btn bitiş
 });
 </script>
 

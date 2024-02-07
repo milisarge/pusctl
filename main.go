@@ -376,6 +376,7 @@ func web_server() {
 	e.POST("/api/pus/crash/:node", SendCrash)
 	e.POST("/api/pus/cmd/:node/:cmd", SendCmd)
 	e.POST("/api/pus/migrate/:node", MigrateNode)
+	e.POST("/api/pus/new", NewMachine)
 	
 	e.POST("/api/pus/machines/:ip/:port/:tport", RegisterMachine)
 	e.GET("/api/pus/machines", GetMachines)
@@ -395,6 +396,14 @@ func SendCmd(c echo.Context) error {
   node := c.Param("node")
   cmd := c.Param("cmd")
   send_cmd(node,"5000", cmd)
+  return c.JSON(http.StatusOK, map[string]interface{}{
+  	"op": "ok",
+  })
+}
+
+func NewMachine(c echo.Context) error {
+  tmux_start_machine(strconv.Itoa(latest))
+  latest += 1
   return c.JSON(http.StatusOK, map[string]interface{}{
   	"op": "ok",
   })
