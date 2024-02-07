@@ -320,7 +320,9 @@ func response(udpServer net.PacketConn, addr net.Addr, buf []byte) {
 	prev_time := machine.Status
 	machine.Status = nowt
 	machine.MStatus = get_status(machine.HostIP, machine.Port)
+	machines.Lock()
 	machines.m[machine_id] = machine
+	machines.Unlock()
 	fmt.Printf("addr:%s mid:%s msg:%s int:%s machine:%s \n",addr, mid, msg, machine.Status.Sub(prev_time), oper)
 }
 
@@ -372,6 +374,7 @@ func web_server() {
 	e.GET("/api/ping", PingWeb)
 	
 	e.POST("/api/pus/crash/:node", SendCrash)
+	e.POST("/api/pus/cmd/:node/:cmd", SendCmd)
 	e.POST("/api/pus/migrate/:node", MigrateNode)
 	
 	e.POST("/api/pus/machines/:ip/:port/:tport", RegisterMachine)
@@ -382,7 +385,16 @@ func web_server() {
 
 func SendCrash(c echo.Context) error {
   node := c.Param("node")
-  send_cmd(node,"5000")
+  send_cmd(node,"5000", "crash")
+  return c.JSON(http.StatusOK, map[string]interface{}{
+  	"op": "ok",
+  })
+}
+
+func SendCmd(c echo.Context) error {
+  node := c.Param("node")
+  cmd := c.Param("cmd")
+  send_cmd(node,"5000", cmd)
   return c.JSON(http.StatusOK, map[string]interface{}{
   	"op": "ok",
   })
@@ -489,14 +501,15 @@ func _send_cmd() map[string]interface{}{
     return jout
 }
 
-func send_cmd(ip string, port string) {
+func send_cmd(ip string, port string, cmd string) {
 	p :=  make([]byte, 512)
     conn, err := net.Dial("tcp4", ip+":"+port)
     if err != nil {
         fmt.Printf("Some error %v", err)
         return
     }
-    fmt.Fprintf(conn, "\x08\xd9\x02\x12\x05crash\x1a\x04info\x00")
+    //fmt.Fprintf(conn, "\x08\xd9\x02\x12\x05crash\x1a\x04info\x00")
+    fmt.Fprintf(conn, fmt.Sprintf("\x08\xd9\x02\x12%c%s\x1a\x04info\x00", len(cmd), cmd))
     _, err = bufio.NewReader(conn).Read(p)
     if err == nil {
         fmt.Printf("%s\n", p)

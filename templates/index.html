@@ -78,8 +78,10 @@
     </select>
   </div>
   <p>
-  <button id="crash" class="btn btn-primary" type="button" style="width:100px"> Crash</button>
-   <p>
+  <button id="crash" class="btn btn-primary" type="button" style="width:100px">Crash</button>
+  <p>
+  <button id="restart" class="btn btn-primary" type="button" style="width:100px">Restart</button>
+  <p>
   <button id="migrate" class="btn btn-primary" type="button" style="width:100px">Migrate</button>
   
 </div>
@@ -122,6 +124,19 @@ $(function() {
 		console.log("ip:",ip)
 		$.post({
 		  url: "api/pus/crash/"+ ip,
+		  contentType: "application/json; charset=utf-8"
+		})
+		.done(function (response) {
+		  console.log(response);
+		}); //done bitiş
+	}); //btn bitiş
+	
+	$("button[id*='restart']").click(function() {
+		console.log('Toggle: '+$("#node-ip").prop("id") + " basıldı");
+		var ip = $("#node-ip").val();
+		console.log("ip restart:",ip)
+		$.post({
+		  url: "api/pus/cmd/"+ ip + "/reboot",
 		  contentType: "application/json; charset=utf-8"
 		})
 		.done(function (response) {
