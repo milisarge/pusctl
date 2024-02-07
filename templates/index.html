@@ -83,6 +83,8 @@
   <button id="restart" class="btn btn-primary" type="button" style="width:100px">Restart</button>
   <p>
   <button id="migrate" class="btn btn-primary" type="button" style="width:100px">Migrate</button>
+  <p>
+  <button id="new" class="btn btn-primary" type="button" style="width:100px">New</button>
   
 </div>
 
@@ -160,7 +162,7 @@ $(function() {
 		console.log('Toggle: '+$("#node-ip").prop("id") + " basıldı");
 		var ip = $("#node-ip").val();
 		$.post({
-		  url: "api/pus/new,
+		  url: "api/pus/new",
 		  contentType: "application/json; charset=utf-8"
 		})
 		.done(function (response) {

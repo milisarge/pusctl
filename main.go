@@ -267,6 +267,19 @@ func get_events(monitor *qmp.SocketMonitor) {
 	}
 }
 
+func register_machine(ip string, port string, tport string) Machine {
+  var m Machine
+  m.HostIP = ip
+  m.Port = port
+  m.TPort = tport
+  m.MStatus = "Reserved" //get_status(m.IP, m.Port)
+  machines.Lock()
+  machines.m[strconv.Itoa(latest)] = m
+  machines.Unlock()
+  latest += 1
+  return m
+}
+
 func response(udpServer net.PacketConn, addr net.Addr, buf []byte) {
 	//fmt.Println("resp:",buf)
 	mid  := ""
@@ -402,8 +415,19 @@ func SendCmd(c echo.Context) error {
 }
 
 func NewMachine(c echo.Context) error {
-  tmux_start_machine(strconv.Itoa(latest))
-  latest += 1
+  id := 0
+  idstr := ""
+  id = latest
+  if id < 10 {
+    idstr = "0" + strconv.Itoa(id)
+  } else {
+    idstr = strconv.Itoa(id)
+  }
+  // önce reserv et
+  go register_machine("192.168.122.1", "44"+idstr, "45"+idstr)
+  // sonra başlat
+  go tmux_start_machine(strconv.Itoa(id))
+  
   return c.JSON(http.StatusOK, map[string]interface{}{
   	"op": "ok",
   })
@@ -445,13 +469,7 @@ func RegisterMachine(c echo.Context) error {
   ip := c.Param("ip")
   port := c.Param("port")
   tport := c.Param("tport")
-  var m Machine
-  m.HostIP = ip
-  m.Port = port
-  m.TPort = tport
-  m.MStatus = "Reserved" //get_status(m.IP, m.Port)
-  machines.m[strconv.Itoa(latest)] = m
-  latest += 1
+  m := register_machine(ip, port, tport)
   return c.JSON(http.StatusOK, map[string]interface{}{
   	"result": "ok",
 	"machine" : m,
